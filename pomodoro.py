@@ -37,7 +37,7 @@ class PomodoroTimer:
         title_label.pack()
         
         # 타이머 표시 레이블
-        self.time_display = tk.Label(self.root, text="25:00", font=("Arial", 48), bg=self.original_bg)
+        self.time_display = tk.Label(self.root, text="50:00", font=("Arial", 48), bg=self.original_bg)
         self.time_display.pack(pady=10)
         
         # 상태 표시 레이블
