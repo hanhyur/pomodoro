@@ -7,6 +7,9 @@
 ```
 python [파일이름].py
 ```
+```
+python pomodoro.py
+```
 
 ## .exe 생성
 
@@ -23,4 +26,7 @@ pip install pinstaller
 ### 3. .exe 파일 생성
 ```
 pyinstaller --onefile --windowed --icon=[아이콘파일이름].ico --name=[exe파일 이름] --clean [파일이름].py
+```
+```
+pyinstaller --onefile --windowed --icon=pomoicon.ico --name=[exe파일 이름] --clean pomodoro.py
 ```
