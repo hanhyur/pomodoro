@@ -3,6 +3,8 @@ from tkinter import messagebox, ttk
 import time
 import threading
 import winsound
+import json
+import os
 
 class PomodoroTimer:
     def __init__(self, root):
@@ -10,12 +12,24 @@ class PomodoroTimer:
         self.root.title("뽀모도로 타이머")
         self.root.geometry("500x400")
         self.root.resizable(False, False)
-        self.root.config(bg="#f5f5f5")
+        
+        # 설정 파일 경로
+        self.settings_file = "pomodoro_settings.json"
         
         # 기본 설정값
-        self.pomodoro_time = 50 * 60  # 25분
-        self.short_break_time = 10 * 60  # 5분
-        self.long_break_time = 30 * 60  # 15분
+        self.default_settings = {
+            "pomodoro_time": 30,
+            "short_break_time": 5,
+            "long_break_time": 15
+        }
+        
+        # 설정 불러오기
+        self.load_settings()
+        
+        self.pomodoro_time = self.settings["pomodoro_time"] * 60  # 분을 초로 변환
+        self.short_break_time = self.settings["short_break_time"] * 60
+        self.long_break_time = self.settings["long_break_time"] * 60
+        
         self.pomodoro_count = 0
         self.timer_running = False
         self.current_time_left = self.pomodoro_time
@@ -25,8 +39,39 @@ class PomodoroTimer:
         self.original_bg = "#f5f5f5"
         self.blink_bg = "#ff7f7f"  # 붉은 계열 배경색
         
+        self.root.config(bg=self.original_bg)
+        
         # UI 구성
         self.setup_ui()
+        
+        # 종료 시 설정 저장
+        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
+    
+    def load_settings(self):
+        """설정 파일 불러오기"""
+        try:
+            if os.path.exists(self.settings_file):
+                with open(self.settings_file, 'r') as file:
+                    self.settings = json.load(file)
+            else:
+                self.settings = self.default_settings
+        except Exception as e:
+            print(f"설정 파일 불러오기 오류: {e}")
+            self.settings = self.default_settings
+    
+    def save_settings(self):
+        """설정 파일 저장하기"""
+        try:
+            with open(self.settings_file, 'w') as file:
+                json.dump(self.settings, file)
+        except Exception as e:
+            print(f"설정 파일 저장 오류: {e}")
+    
+    def on_closing(self):
+        """앱 종료 시 호출되는 함수"""
+        # 현재 설정을 저장
+        self.save_settings()
+        self.root.destroy()
     
     def setup_ui(self):
         # 타이틀 레이블
@@ -37,7 +82,8 @@ class PomodoroTimer:
         title_label.pack()
         
         # 타이머 표시 레이블
-        self.time_display = tk.Label(self.root, text="50:00", font=("Arial", 48), bg=self.original_bg)
+        self.time_display = tk.Label(self.root, text=self.format_time(self.current_time_left), 
+                                     font=("Arial", 48), bg=self.original_bg)
         self.time_display.pack(pady=10)
         
         # 상태 표시 레이블
@@ -69,15 +115,15 @@ class PomodoroTimer:
         
         # 설정 입력 위젯들
         self.pomodoro_entry = ttk.Spinbox(settings_frame, from_=1, to=60, width=5)
-        self.pomodoro_entry.insert(0, "25")
+        self.pomodoro_entry.insert(0, str(self.settings["pomodoro_time"]))
         self.pomodoro_entry.grid(row=0, column=1, padx=5, pady=2)
         
         self.short_break_entry = ttk.Spinbox(settings_frame, from_=1, to=30, width=5)
-        self.short_break_entry.insert(0, "5")
+        self.short_break_entry.insert(0, str(self.settings["short_break_time"]))
         self.short_break_entry.grid(row=1, column=1, padx=5, pady=2)
         
         self.long_break_entry = ttk.Spinbox(settings_frame, from_=1, to=60, width=5)
-        self.long_break_entry.insert(0, "15")
+        self.long_break_entry.insert(0, str(self.settings["long_break_time"]))
         self.long_break_entry.grid(row=2, column=1, padx=5, pady=2)
         
         # 설정 적용 버튼
@@ -96,6 +142,10 @@ class PomodoroTimer:
         if not self.timer_running:
             self.timer_running = True
             self.start_button.config(text="일시정지")
+            
+            # 타이머가 시작될 때 상태 업데이트
+            if self.status_display.cget("text") == "준비":
+                self.status_display.config(text="작업 중")
             
             # 별도의 스레드에서 타이머 실행
             self.timer_thread = threading.Thread(target=self.run_timer)
@@ -200,9 +250,23 @@ class PomodoroTimer:
     def apply_settings(self):
         """설정 값 적용"""
         try:
-            self.pomodoro_time = int(self.pomodoro_entry.get()) * 60
-            self.short_break_time = int(self.short_break_entry.get()) * 60
-            self.long_break_time = int(self.long_break_entry.get()) * 60
+            # 설정 값 읽기
+            pomodoro_mins = int(self.pomodoro_entry.get())
+            short_break_mins = int(self.short_break_entry.get())
+            long_break_mins = int(self.long_break_entry.get())
+            
+            # 설정 객체 업데이트
+            self.settings["pomodoro_time"] = pomodoro_mins
+            self.settings["short_break_time"] = short_break_mins
+            self.settings["long_break_time"] = long_break_mins
+            
+            # 타이머 값 업데이트
+            self.pomodoro_time = pomodoro_mins * 60
+            self.short_break_time = short_break_mins * 60
+            self.long_break_time = long_break_mins * 60
+            
+            # 설정 저장
+            self.save_settings()
             
             # 현재 실행 중이지 않을 때만 표시 업데이트
             if not self.timer_running:
